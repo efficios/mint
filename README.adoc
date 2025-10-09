@@ -18,6 +18,8 @@ endif::env-github[]
 = mint
 Philippe Proulx
 
+image::logo.png[]
+
 [.lead]
 _**mint**_ is a single {cpp}11 header to format terminal text
 using a simple tag-based markup syntax.
