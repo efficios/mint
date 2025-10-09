@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.2.0, a C++ function which
+ * This header offers mint::mint() v0.2.1, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -41,6 +41,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -367,48 +368,47 @@ private:
 /*
  * Returns whether or not there's a connected terminal which seems to
  * support attributes.
+ *
+ * This function is thread-safe.
  */
 inline bool hasTerminalSupport() noexcept
 {
-    static bool checked = false;
+    static std::once_flag initFlag;
     static bool hasSupport;
 
-    if (checked) {
-        return hasSupport;
-    }
+    std::call_once(initFlag, [] {
+        /* Check if standard output is connected to a real TTY */
+        if (!isatty(STDOUT_FILENO)) {
+            hasSupport = false;
+            return;
+        }
 
-    checked = true;
+        /* Verify the connected TTY is actually a character device */
+        {
+            struct stat ttyStats;
 
-    /* Check if standard output is connected to a real TTY */
-    if (!isatty(STDOUT_FILENO)) {
-        hasSupport = false;
-        return hasSupport;
-    }
-
-    /* Verify the connected TTY is actually a character device */
-    {
-        struct stat ttyStats;
-
-        if (fstat(STDOUT_FILENO, &ttyStats) == 0) {
-            if (!S_ISCHR(ttyStats.st_mode)) {
-                /* Not a character device */
-                hasSupport = false;
-                return hasSupport;
+            if (fstat(STDOUT_FILENO, &ttyStats) == 0) {
+                if (!S_ISCHR(ttyStats.st_mode)) {
+                    /* Not a character device */
+                    hasSupport = false;
+                    return;
+                }
             }
         }
-    }
 
-    /* Check if terminal explicitly doesn't support escape codes */
-    {
-        const auto term = std::getenv("TERM");
+        /* Check if terminal explicitly doesn't support escape codes */
+        {
+            const auto term = std::getenv("TERM");
 
-        if (term && std::strcmp(term, "dumb") == 0) {
-            hasSupport = false;
-            return hasSupport;
+            if (term && std::strcmp(term, "dumb") == 0) {
+                hasSupport = false;
+                return;
+            }
         }
-    }
 
-    hasSupport = true;
+        hasSupport = true;
+    });
+
     return hasSupport;
 }
 
@@ -451,6 +451,8 @@ enum class When
  *
  * This function throws an instance of `std::runtime_error` when there's
  * a markup syntax error in `str`.
+ *
+ * This function is thread-safe.
  *
  * MARKUP SYNTAX
  * ━━━━━━━━━━━━━
