@@ -76,6 +76,12 @@ struct StackFrame final
 
 using Stack = std::array<StackFrame, 5>;
 
+/*
+ * Helper for mint().
+ *
+ * Performs the conversion if `emitSgrCodes` is true at construction
+ * time and makes the resulting string available as str().
+ */
 class Parser final
 {
 public:
@@ -93,6 +99,10 @@ public:
     }
 
 private:
+    /*
+     * Appends the SGR codes (if required) from the attributes
+     * of `frame`.
+     */
     void _appendSgrCode(const StackFrame& frame)
     {
         if (!_emitSgrCodes) {
@@ -126,6 +136,12 @@ private:
         _os << 'm';
     }
 
+    /*
+     * Tries to parse a color letter, returning the corresponding ANSI
+     * color offset.
+     *
+     * Throws `std::runtime_error` on error.
+     */
     std::uint8_t _tryParseColor()
     {
         if (_at == _end) {
@@ -159,6 +175,11 @@ private:
         }
     }
 
+    /*
+     * Pushes `frame` onto the current stack.
+     *
+     * Throws `std::runtime_error` on error.
+     */
     void _stackPush(const StackFrame& frame)
     {
         if (_stackLen >= _stack.size()) {
@@ -169,6 +190,11 @@ private:
         ++_stackLen;
     }
 
+    /*
+     * Pops a frame from the current stack.
+     *
+     * The current stack must not be empty.
+     */
     void _stackPop()
     {
         assert(_stackLen > 0);
@@ -180,11 +206,16 @@ private:
         return _stack[_stackLen - 1];
     }
 
+    /*
+     * Parses a complete opening tag, from `[` to `]` (included),
+     * returning a corresponding frame.
+     */
     StackFrame _parseOpenTag()
     {
         StackFrame frame;
 
         /* Skip `[` */
+        assert(*_at == '[');
         ++_at;
 
         if (_at != _end && *_at == ']') {
@@ -233,6 +264,7 @@ private:
         /* Initialize with default frame (no attributes) */
         this->_stackPush(StackFrame {});
 
+        /* Read each character */
         while (_at != _end) {
             if (*_at == '\\') {
                 /* Escape sequence */
@@ -264,7 +296,7 @@ private:
                         throw std::runtime_error {"Expecting `]` after `[/`"};
                     }
                 } else {
-                    /* Opening tag */
+                    /* Expect opening tag */
                     auto frame = _parseOpenTag();
 
                     /* Inherit attributes from current frame */
