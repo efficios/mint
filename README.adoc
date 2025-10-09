@@ -1,0 +1,117 @@
+// Show ToC at a specific location for a GitHub rendering
+ifdef::env-github[]
+:toc: macro
+endif::env-github[]
+
+ifndef::env-github[]
+:toc: left
+endif::env-github[]
+
+// This is to mimic what GitHub does so that anchors work in an offline
+// rendering too.
+:idprefix:
+:idseparator: -
+
+// Other attributes
+:cpp: C++
+
+= mint
+Philippe Proulx
+
+[.lead]
+_**mint**_ is a single {cpp}11 header to format terminal text
+using a simple tag-based markup syntax.
+
+image::demo1.png[]
+
+`mint.hpp` offers the `mint::mint()` function which transforms a
+string containing terminal attribute tags into another string containing
+actual terminal
+https://en.wikipedia.org/wiki/ANSI_escape_code#SGR[SGR codes].
+
+`mint::mint()` automatically detects terminal support. If the standard
+output isn't connected to a compatible terminal, it removes the
+attribute tags instead of converting them to SGR codes.
+
+IMPORTANT: You may copy `mint.hpp` as is to your project. The only
+requirements are Linux and {cpp}11.
+
+ifdef::env-github[]
+// ToC location for a GitHub rendering
+toc::[]
+endif::env-github[]
+
+== Markup syntax
+
+_mint_ tags allow you to specify text attributes like colors, bold,
+underline, and italic formatting.
+
+The _mint_ markup syntax is straightforward and composable.
+
+An opening tag is, between `[` and `]`, an unordered sequence of (all
+optional, but at least one):
+
+`!`:: Bold.
+`_`:: Underline.
+`#`:: Italic.
+
+`*`::
+    Bright foreground color.
+
+`:COLOR` (background)::
+`COLOR` (foreground)::
+    `COLOR` is one of:
++
+[%autowidth]
+|===
+|`d` |Default
+|`k` |Black
+|`r` |Red
+|`g` |Green
+|`y` |Yellow
+|`b` |Blue
+|`m` |Magenta
+|`c` |Cyan
+|`w` |White
+|===
+
+A closing tag is `[/]`.
+
+Escape `[` with `pass:[\[]` and `\` with `\\`. Use
+`mint::escape()` to escape text for `mint::mint()`.
+
+Opening and closing tags may be nested (maximum four levels of depth)
+and must be balanced. Note that nesting is additive: a nested tag cannot
+cancel an active attribute.
+
+IMPORTANT: The SGR code of any opening and closing tag always
+starts with a reset.
+
+Because you must balance opening and closing tags, _mint_ is more suited
+to https://fmt.dev/12.0/[pass:[{fmt}]] and `printf()` than I/O streams:
+
+.Using _mint_ with pass:[{fmt}].
+====
+[source,cpp]
+----
+fmt::print(mint::mint("[w:r] [!]ERROR[/]: At offset [!*b]{:#x}[/]: {} [/]"),
+           exc.offset(), exc.what());
+----
+
+image::demo2.png[]
+
+NOTE: In this example, `mint::mint()` formats before `fmt::print()`,
+therefore we don't need to escape `exc.what()` with `mint::escape()`.
+====
+
+== API usage
+
+Include the `mint.hpp` header in your {cpp} code:
+
+[source,cpp]
+----
+#include "mint.hpp"
+----
+
+See the documentation of `mint::mint()`, `mint::escape()`,
+and `mint::hasTerminalSupport()` in the header file itself.
