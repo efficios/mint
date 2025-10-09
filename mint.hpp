@@ -25,9 +25,9 @@
  */
 
 /*
- * This header offers mint::mint(), a C++ function which transforms a
- * string which can contain terminal attribute tags into another string
- * containing actual terminal SGR codes.
+ * This header offers mint::mint() v0.1.0, a C++ function which
+ * transforms a string which can contain terminal attribute tags into
+ * another string containing actual terminal SGR codes.
  *
  * You may copy this header as is to your project. The only requirements
  * are Linux and C++11.
@@ -36,6 +36,7 @@
 #ifndef MINT_HPP
 #define MINT_HPP
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -43,7 +44,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <array>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -320,8 +320,8 @@ private:
 } // namespace internal
 
 /*
- * Returns whether or not there's a connected terminal which
- * supports attributes.
+ * Returns whether or not there's a connected terminal which seems to
+ * support attributes.
  */
 inline bool hasTerminalSupport() noexcept
 {
@@ -368,13 +368,41 @@ inline bool hasTerminalSupport() noexcept
 }
 
 /*
+ * When to emit SGR codes.
+ */
+enum class When
+{
+    /* When the connected terminal seems to supports it */
+    Auto,
+
+    /* Always, even if the connected terminal doesn't seem to support it */
+    Always,
+
+    /* Never, even if the connected terminal seems to support it */
+    Never,
+};
+
+/*
  * Parses `str` for terminal attribute tags, converts such tags to
  * actual terminal SGR codes, and returns the corresponding string.
  *
- * When `force` is false, this function only performs the conversion
- * when there's a connected terminal which supports attributes. When
- * there's no terminal SGR support (hasTerminalSupport() returns false),
- * this function effectively removes attribute tags from `str`.
+ * The `when` parameter controls when this function emits SGR codes:
+ *
+ * `When::Auto` (default):
+ *     Only performs the conversion when there's a connected terminal
+ *     which seems to support attributes.
+ *
+ *     When there's no terminal SGR support (hasTerminalSupport()
+ *     returns false), this function effectively removes attribute tags
+ *     from `str`.
+ *
+ * `When::Always`:
+ *     Always performs the conversion, even if the connected terminal
+ *     doesn't seem to support it.
+ *
+ * `When::Never`:
+ *     Never performs the conversion and always removes attribute tags
+ *     from `str`, even if the connected terminal seems to support it.
  *
  * This function throws an instance of `std::runtime_error` when there's
  * a markup syntax error in `str`.
@@ -435,9 +463,12 @@ inline bool hasTerminalSupport() noexcept
  *     [y:b]Yellow on blue background[/]
  *     Status: [!g]OK[/], Warning: [y*]attention[/]!
  */
-inline std::string mint(const std::string& str, const bool force = false)
+inline std::string mint(const std::string& str, const When when = When::Auto)
 {
-    internal::Parser parser {str, force || hasTerminalSupport()};
+    internal::Parser parser {
+        str,
+        when == When::Always || (when == When::Auto && hasTerminalSupport())
+    };
 
     return parser.str();
 }

@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
     }
 
     try {
-        std::cout << mint::mint(argv[1], true);
+        std::cout << mint::mint(argv[1], mint::When::Always);
     } catch (const std::runtime_error& exc) {
         std::cout << "ERROR: " << exc.what();
         return 1;
