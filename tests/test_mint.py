@@ -40,6 +40,10 @@ def test_italic():
     _test_success('[#]italic text[/]', '\033[0;3mitalic text\033[0m')
 
 
+def test_dim():
+    _test_success('[-]dim text[/]', '\033[0;2mdim text\033[0m')
+
+
 def test_bright_red():
     _test_success('[*r]bright red[/]', '\033[0;91mbright red\033[0m')
 
@@ -128,8 +132,20 @@ def test_bold_underline():
     _test_success('[!_]bold and underlined[/]', '\033[0;1;4mbold and underlined\033[0m')
 
 
+def test_bold_dim():
+    _test_success('[!-]bold and dim[/]', '\033[0;1;2mbold and dim\033[0m')
+
+
 def test_bold_italic():
     _test_success('[!#]bold and italic[/]', '\033[0;1;3mbold and italic\033[0m')
+
+
+def test_dim_underline():
+    _test_success('[-_]dim and underline[/]', '\033[0;2;4mdim and underline\033[0m')
+
+
+def test_dim_italic():
+    _test_success('[-#]dim and italic[/]', '\033[0;2;3mdim and italic\033[0m')
 
 
 def test_underline_italic():
@@ -137,7 +153,7 @@ def test_underline_italic():
 
 
 def test_all_text_attributes():
-    _test_success('[!_#]all text attrs[/]', '\033[0;1;3;4mall text attrs\033[0m')
+    _test_success('[!-_#]all text attrs[/]', '\033[0;1;2;3;4mall text attrs\033[0m')
 
 
 def test_attribute_order_bold_red():
@@ -162,6 +178,10 @@ def test_underline_blue():
 
 def test_italic_green():
     _test_success('[#g]italic green[/]', '\033[0;3;32mitalic green\033[0m')
+
+
+def test_dim_red():
+    _test_success('[-r]dim red[/]', '\033[0;2;31mdim red\033[0m')
 
 
 def test_fg_and_bg_colors():
@@ -249,6 +269,16 @@ def test_nested_red_in_bold():
 def test_nested_underline_in_italic():
     _test_success('[#]italic [_]and underline[/][/]',
                   '\033[0;3mitalic \033[0;3;4mand underline\033[0;3m\033[0m')
+
+
+def test_nested_dim_in_bold():
+    _test_success('[!]bold [-]and dim[/][/]',
+                  '\033[0;1mbold \033[0;1;2mand dim\033[0;1m\033[0m')
+
+
+def test_nested_bold_in_dim():
+    _test_success('[-]dim [!]and bold[/][/]',
+                  '\033[0;2mdim \033[0;1;2mand bold\033[0;2m\033[0m')
 
 
 def test_nested_bg_in_fg():

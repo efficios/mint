@@ -17,6 +17,7 @@ endif::env-github[]
 
 = mint
 Philippe Proulx
+v0.2.0
 
 image::logo.png[]
 
@@ -54,6 +55,7 @@ An opening tag is, between `[` and `]`, an unordered sequence of (all
 optional, but at least one):
 
 `!`:: Bold.
+`-`:: Dim.
 `_`:: Underline.
 `#`:: Italic.
 

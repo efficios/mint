@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.1.0, a C++ function which
+ * This header offers mint::mint() v0.2.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -65,6 +65,7 @@ struct StackFrame final
     }
 
     bool hasBold = false;
+    bool hasDim = false;
     bool hasUnderline = false;
     bool hasItalic = false;
     bool hasBright = false;
@@ -114,6 +115,10 @@ private:
 
         if (frame.hasBold) {
             _os << ";1";
+        }
+
+        if (frame.hasDim) {
+            _os << ";2";
         }
 
         if (frame.hasItalic) {
@@ -228,6 +233,10 @@ private:
                 /* Bold */
                 frame.hasBold = true;
                 ++_at;
+            } else if (*_at == '-') {
+                /* Dim */
+                frame.hasDim = true;
+                ++_at;
             } else if (*_at == '_') {
                 /* Underline */
                 frame.hasUnderline = true;
@@ -302,6 +311,10 @@ private:
                     /* Inherit attributes from current frame */
                     if (!frame.hasBold && this->_stackBack().hasBold) {
                         frame.hasBold = true;
+                    }
+
+                    if (!frame.hasDim && this->_stackBack().hasDim) {
+                        frame.hasDim = true;
                     }
 
                     if (!frame.hasUnderline && this->_stackBack().hasUnderline) {
@@ -447,6 +460,9 @@ enum class When
  * `!`:
  *     Bold.
  *
+ * `-`:
+ *     Dim.
+ *
  * `_`:
  *     Underline.
  *
@@ -494,6 +510,7 @@ enum class When
  *     To show [c_]cyan[/] text, use the `\[c]` tag
  *     [y:b]Yellow on blue background[/]
  *     Status: [!g]OK[/], Warning: [y*]attention[/]!
+ *     Use [-]dim text[/] for less prominent information
  */
 inline std::string mint(const std::string& str, const When when = When::Auto)
 {
