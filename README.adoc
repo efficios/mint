@@ -115,3 +115,25 @@ Include the `mint.hpp` header in your {cpp} code:
 
 See the documentation of `mint::mint()`, `mint::escape()`,
 and `mint::hasTerminalSupport()` in the header file itself.
+
+== Testing
+
+To test _mint_:
+
+. Build the testers:
++
+----
+$ mkdir -p build && cd build && cmake .. && make
+----
+
+. Test with https://docs.pytest.org/en/stable/[pytest], providing
+  the build directory:
++
+----
+$ MINT_BUILD_DIR=$PWD pytest ../tests
+----
+
+== Contributing
+
+To report a bug, https://github.com/efficios/mint/issues/new[create a
+GitHub issue].
