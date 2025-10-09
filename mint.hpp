@@ -349,7 +349,7 @@ private:
     bool _emitSgrCodes;
 };
 
-} // namespace internal
+} /* namespace internal */
 
 /*
  * Returns whether or not there's a connected terminal which seems to
@@ -528,6 +528,6 @@ inline std::string escape(const std::string& str)
     return result;
 }
 
-} // namespace mint
+} /* namespace mint */
 
-#endif // MINT_HPP
+#endif /* MINT_HPP */
