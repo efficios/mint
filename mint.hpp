@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.3.0, a C++ function which
+ * This header offers mint::mint() v0.4.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -87,9 +87,9 @@ using Stack = std::array<StackFrame, 5>;
 class Parser final
 {
 public:
-    explicit Parser(const std::string& str, const bool emitSgrCodes) :
-        _at {str.data()},
-        _end {str.data() + str.size()},
+    explicit Parser(const char * const begin, const char * const end, const bool emitSgrCodes) :
+        _at {begin},
+        _end {end},
         _emitSgrCodes {emitSgrCodes}
     {
         this->_parse();
@@ -428,8 +428,9 @@ enum class When
 };
 
 /*
- * Parses `str` for terminal attribute tags, converts such tags to
- * actual terminal SGR codes, and returns the corresponding string.
+ * Parses the string from `begin` to `end` (excluded) for terminal
+ * attribute tags, converts such tags to actual terminal SGR codes, and
+ * returns the corresponding string.
  *
  * The `when` parameter controls when this function emits SGR codes:
  *
@@ -439,7 +440,7 @@ enum class When
  *
  *     When there's no terminal SGR support (hasTerminalSupport()
  *     returns false), this function effectively removes attribute tags
- *     from `str`.
+ *     from the viewed string.
  *
  * `When::Always`:
  *     Always performs the conversion, even if the connected terminal
@@ -447,13 +448,14 @@ enum class When
  *
  * `When::Never`:
  *     Never performs the conversion and always removes attribute tags
- *     from `str`, even if the connected terminal seems to support it.
+ *     from the viewed string, even if the connected terminal seems to
+ *     support it.
  *
  * See the escapeAnsi() function to return to a plain string (without
  * SGR codes) from a string which this function returns.
  *
  * This function throws an instance of `std::runtime_error` when there's
- * a markup syntax error in `str`.
+ * a markup syntax error in the viewed string.
  *
  * This function is thread-safe.
  *
@@ -517,10 +519,10 @@ enum class When
  *     Status: [!g]OK[/], Warning: [y*]attention[/]!
  *     Use [-]dim text[/] for less prominent information
  */
-inline std::string mint(const std::string& str, const When when = When::Auto)
+inline std::string mint(const char * const begin, const char * const end, const When when = When::Auto)
 {
     internal::Parser parser {
-        str,
+        begin, end,
         when == When::Always || (when == When::Auto && hasTerminalSupport())
     };
 
@@ -528,26 +530,59 @@ inline std::string mint(const std::string& str, const When when = When::Auto)
 }
 
 /*
- * Returns a version of `str` with `[` characters replaced with `\[`
- * and `\` characters replaced with `\\`.
+ * Overload with a C string.
  */
-inline std::string escape(const std::string& str)
+inline std::string mint(const char * const str, const When when = When::Auto)
+{
+    return mint(str, str + std::strlen(str), when);
+}
+
+/*
+ * Overload with a C++ string.
+ */
+inline std::string mint(const std::string& str, const When when = When::Auto)
+{
+    return mint(str.data(), str.data() + str.size(), when);
+}
+
+/*
+ * Returns a version of the string from `begin` to `end` (excluded) with
+ * `[` characters replaced with `\[` and `\` characters replaced
+ * with `\\`.
+ */
+inline std::string escape(const char * const begin,  const char * const end)
 {
     std::string result;
 
-    result.reserve(str.size());
+    result.reserve(end - begin);
 
-    for (const auto c : str) {
-        if (c == '\\') {
+    for (auto at = begin; at != end; ++at) {
+        if (*at == '\\') {
             result += "\\\\";
-        } else if (c == '[') {
+        } else if (*at == '[') {
             result += "\\[";
         } else {
-            result += c;
+            result += *at;
         }
     }
 
     return result;
+}
+
+/*
+ * Overload with a C string.
+ */
+inline std::string escape(const char * const str)
+{
+    return escape(str, str + std::strlen(str));
+}
+
+/*
+ * Overload with a C++ string.
+ */
+inline std::string escape(const std::string& str)
+{
+    return escape(str.data(), str.data() + str.size());
 }
 
 /*
