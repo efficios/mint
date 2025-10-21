@@ -17,7 +17,7 @@ endif::env-github[]
 
 = mint
 Philippe Proulx
-v0.2.1
+v0.3.0
 
 image::logo.png[]
 
@@ -81,8 +81,9 @@ optional, but at least one):
 
 A closing tag is `[/]`.
 
-Escape `[` with `pass:[\[]` and `\` with `\\`. Use
-`mint::escape()` to escape text for `mint::mint()`.
+Escape `[` with `pass:[\[]` and `\` with `\\`. Use `mint::escape()` to
+escape text for `mint::mint()`. Use `mint::escapeAnsi()` to return to a
+plain string (no SGR codes) from the result of `mint::mint()`.
 
 Opening and closing tags may be nested (maximum four levels of depth)
 and must be balanced. Note that nesting is additive: a nested tag cannot
@@ -118,7 +119,8 @@ Include the `mint.hpp` header in your {cpp} code:
 ----
 
 See the documentation of `mint::mint()`, `mint::escape()`,
-and `mint::hasTerminalSupport()` in the header file itself.
+`mint::escapeAnsi()`, and `mint::hasTerminalSupport()` in the header
+file itself.
 
 == Testing
 

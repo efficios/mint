@@ -28,6 +28,13 @@ def _test_escape(input_string: str, expected_output: str):
     assert result.stdout == expected_output
 
 
+def _test_escape_ansi(input_string: str, expected_output: str):
+    result = subprocess.run([os.path.join(testers_path, 'escape-ansi-tester'), input_string],
+                            capture_output=True, text=True)
+    assert result.returncode == 0
+    assert result.stdout == expected_output
+
+
 def test_bold():
     _test_success('[!]bold text[/]', '\033[0;1mbold text\033[0m')
 
@@ -422,3 +429,47 @@ def test_escape_multiple_backslashes():
 
 def test_escape_tag_syntax():
     _test_escape('[!r]bold red[/]', '\\[!r]bold red\\[/]')
+
+
+def test_escape_ansi_plain_text():
+    _test_escape_ansi('plain text', 'plain text')
+
+
+def test_escape_ansi_bold():
+    _test_escape_ansi('[!]bold text[/]', 'bold text')
+
+
+def test_escape_ansi_red():
+    _test_escape_ansi('[r]red text[/]', 'red text')
+
+
+def test_escape_ansi_bold_red():
+    _test_escape_ansi('[!r]bold red[/]', 'bold red')
+
+
+def test_escape_ansi_nested():
+    _test_escape_ansi('[r]red [!]and bold[/][/]', 'red and bold')
+
+
+def test_escape_ansi_multiple_tags():
+    _test_escape_ansi('[r]red[/] and [b]blue[/]', 'red and blue')
+
+
+def test_escape_ansi_all_attributes():
+    _test_escape_ansi('[!-_#*r:b]complex[/]', 'complex')
+
+
+def test_escape_ansi_bright_colors():
+    _test_escape_ansi('[*g]bright green[/]', 'bright green')
+
+
+def test_escape_ansi_with_surrounding_text():
+    _test_escape_ansi('before [y]yellow[/] after', 'before yellow after')
+
+
+def test_escape_ansi_empty_string():
+    _test_escape_ansi('', '')
+
+
+def test_escape_ansi_nested_three_levels():
+    _test_escape_ansi('[r]red [!]bold [_]underline[/] back[/] normal[/]', 'red bold underline back normal')

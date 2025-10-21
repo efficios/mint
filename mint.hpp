@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.2.1, a C++ function which
+ * This header offers mint::mint() v0.3.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -449,6 +449,9 @@ enum class When
  *     Never performs the conversion and always removes attribute tags
  *     from `str`, even if the connected terminal seems to support it.
  *
+ * See the escapeAnsi() function to return to a plain string (without
+ * SGR codes) from a string which this function returns.
+ *
  * This function throws an instance of `std::runtime_error` when there's
  * a markup syntax error in `str`.
  *
@@ -545,6 +548,57 @@ inline std::string escape(const std::string& str)
     }
 
     return result;
+}
+
+/*
+ * Returns a version of the string from `begin` to `end` (excluded) with
+ * all SGR escape codes removed.
+ */
+inline std::string escapeAnsi(const char * const begin, const char * const end)
+{
+    std::string result;
+
+    result.reserve(end - begin);
+
+    for (auto at = begin; at != end; ++at) {
+        if (*at == '\033' && at + 1 < end && *(at + 1) == '[') {
+            /* Found start of potential SGR sequence */
+            auto scanAt = at + 2;
+
+            /* Skip until we find 'm' or reach end */
+            while (scanAt < end && *scanAt != 'm') {
+                ++scanAt;
+            }
+
+            if (scanAt < end && *scanAt == 'm') {
+                /* Found valid SGR sequence: skip it */
+                at = scanAt;
+            } else {
+                /* Not a valid SGR sequence: keep the escape char. */
+                result += *at;
+            }
+        } else {
+            result += *at;
+        }
+    }
+
+    return result;
+}
+
+/*
+ * Overload with a C string.
+ */
+inline std::string escapeAnsi(const char * const str)
+{
+    return escapeAnsi(str, str + std::strlen(str));
+}
+
+/*
+ * Overload with a C++ string.
+ */
+inline std::string escapeAnsi(const std::string& str)
+{
+    return escapeAnsi(str.data(), str.data() + str.size());
 }
 
 } /* namespace mint */
