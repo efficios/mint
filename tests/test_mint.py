@@ -343,6 +343,41 @@ def test_consecutive_nested_tags():
                   '\033[0;1m\033[0;1;4m\033[0;1;3;4mtext\033[0;1;4m\033[0;1m\033[0m')
 
 
+def test_multi_slash_double_close():
+    _test_success('[r]red [!]bold[//]',
+                  '\033[0;31mred \033[0;1;31mbold\033[0m')
+
+
+def test_multi_slash_triple_close():
+    _test_success('[r]red [!]bold [_]underline[///]',
+                  '\033[0;31mred \033[0;1;31mbold \033[0;1;4;31munderline\033[0m')
+
+
+def test_multi_slash_quadruple_close():
+    _test_success('[r]red [!]bold [_]underline [#]italic[////]',
+                  '\033[0;31mred \033[0;1;31mbold \033[0;1;4;31munderline \033[0;1;3;4;31mitalic\033[0m')
+
+
+def test_multi_slash_with_text_after():
+    _test_success('[r]red [!]bold[//] normal text',
+                  '\033[0;31mred \033[0;1;31mbold\033[0m normal text')
+
+
+def test_multi_slash_mixed_with_single():
+    _test_success('[r]red [!]bold [_]underline[/] back to bold[//]',
+                  '\033[0;31mred \033[0;1;31mbold \033[0;1;4;31munderline\033[0;1;31m back to bold\033[0m')
+
+
+def test_multi_slash_double_in_middle():
+    _test_success('[r]red [!]bold [_]underline[//] still red[/]',
+                  '\033[0;31mred \033[0;1;31mbold \033[0;1;4;31munderline\033[0;31m still red\033[0m')
+
+
+def test_multi_slash_all_levels():
+    _test_success('[r][!][_][#][////]',
+                  '\033[0;31m\033[0;1;31m\033[0;1;4;31m\033[0;1;3;4;31m\033[0m')
+
+
 def test_empty_opening_tag():
     _test_failure('[]', 'Empty opening tag')
 
@@ -397,6 +432,18 @@ def test_unclosed_opening_tag():
 
 def test_maximum_nesting_depth_exceeded():
     _test_failure('[r][g][b][y][m][c]text[/][/][/][/][/][/]', 'Maximum nesting depth exceeded')
+
+
+def test_multi_slash_too_many():
+    _test_failure('[r][//]', 'Unbalanced closing tag')
+
+
+def test_multi_slash_way_too_many():
+    _test_failure('[r]red[/////]', 'Unbalanced closing tag')
+
+
+def test_multi_slash_unbalanced():
+    _test_failure('[///]', 'Unbalanced closing tag')
 
 
 def test_escape_backslash():

@@ -17,7 +17,7 @@ endif::env-github[]
 
 = mint
 Philippe Proulx
-v0.4.0
+v0.5.0
 
 image::logo.png[]
 
@@ -79,7 +79,8 @@ optional, but at least one):
 |`w` |White
 |===
 
-A closing tag is `[/]`.
+A closing tag contains one or more `/` characters between `[` and `]`.
+Each `/` closes one level.
 
 Escape `[` with `pass:[\[]` and `\` with `\\`. Use `mint::escape()` to
 escape text for `mint::mint()`. Use `mint::escapeAnsi()` to return to a

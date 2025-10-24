@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.4.0, a C++ function which
+ * This header offers mint::mint() v0.5.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -291,20 +291,34 @@ private:
                     throw std::runtime_error {"Invalid escape sequence"};
                 }
             } else if (*_at == '[') {
-                /* Check if it's a closing tag: `[/]` */
+                /* Check if it's a closing tag: `[/...]` */
                 if (_at + 1 < _end && *(_at + 1) == '/') {
-                    if (_at + 2 < _end && *(_at + 2) == ']') {
-                        /* Closing tag */
-                        if (_stackLen <= 1) {
-                            throw std::runtime_error {"Unbalanced closing tag"};
-                        }
+                    /* Count the number of consecutive slashes */
+                    auto slashAt = _at + 1;
+                    Stack::size_type slashCount = 0;
 
-                        this->_stackPop();
-                        this->_appendSgrCode(this->_stackBack());
-                        _at += 3;
-                    } else {
+                    while (slashAt < _end && *slashAt == '/') {
+                        ++slashCount;
+                        ++slashAt;
+                    }
+
+                    /* Expect `]` after the slashes */
+                    if (slashAt == _end || *slashAt != ']') {
                         throw std::runtime_error {"Expecting `]` after `[/`"};
                     }
+
+                    /* Validate we have enough frames to pop */
+                    if (_stackLen <= slashCount) {
+                        throw std::runtime_error {"Unbalanced closing tag"};
+                    }
+
+                    /* Pop `slashCount` frames */
+                    for (Stack::size_type i = 0; i < slashCount; ++i) {
+                        this->_stackPop();
+                    }
+
+                    this->_appendSgrCode(this->_stackBack());
+                    _at = slashAt + 1;
                 } else {
                     /* Expect opening tag */
                     auto frame = _parseOpenTag();
@@ -495,7 +509,8 @@ enum class When
  *     ║ `w` ║ White   ║
  *     ╚═════╩═════════╝
  *
- * A closing tag is `[/]`.
+ * A closing tag contains one or more `/` characters between
+ * `[` and `]`. Each `/` closes one level.
  *
  * Escape `[` with `\[` and `\` with `\\`. Use escape() to escape text
  * for mint().
@@ -518,6 +533,7 @@ enum class When
  *     [y:b]Yellow on blue background[/]
  *     Status: [!g]OK[/], Warning: [y*]attention[/]!
  *     Use [-]dim text[/] for less prominent information
+ *     [r]Level 1 [!]Level 2 [_]Level 3[///] back to default
  */
 inline std::string mint(const char * const begin, const char * const end, const When when = When::Auto)
 {
