@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.5.1, a C++ function which
+ * This header offers mint::mint() v0.5.2, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -41,6 +41,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <cerrno>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
@@ -383,12 +384,13 @@ private:
  * Returns whether or not there's a connected terminal which seems to
  * support attributes.
  *
- * This function is thread-safe.
+ * This function is thread-safe and doesn't modify `errno`.
  */
 inline bool hasTerminalSupport() noexcept
 {
     static std::once_flag initFlag;
     static bool hasSupport;
+    const auto savedErrno = errno;
 
     std::call_once(initFlag, [] {
         /* Check if standard output is connected to a real TTY */
@@ -423,6 +425,7 @@ inline bool hasTerminalSupport() noexcept
         hasSupport = true;
     });
 
+    errno = savedErrno;
     return hasSupport;
 }
 
@@ -471,7 +474,7 @@ enum class When
  * This function throws an instance of `std::runtime_error` when there's
  * a markup syntax error in the viewed string.
  *
- * This function is thread-safe.
+ * This function is thread-safe and doesn't modify `errno`.
  *
  * MARKUP SYNTAX
  * ━━━━━━━━━━━━━
