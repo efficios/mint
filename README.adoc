@@ -17,7 +17,7 @@ endif::env-github[]
 
 = mint
 Philippe Proulx
-v0.5.0
+v0.5.1
 
 image::logo.png[]
 

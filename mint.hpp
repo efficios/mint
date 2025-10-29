@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.5.0, a C++ function which
+ * This header offers mint::mint() v0.5.1, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -414,7 +414,7 @@ inline bool hasTerminalSupport() noexcept
         {
             const auto term = std::getenv("TERM");
 
-            if (term && std::strcmp(term, "dumb") == 0) {
+            if (!term || std::strcmp(term, "dumb") == 0) {
                 hasSupport = false;
                 return;
             }
