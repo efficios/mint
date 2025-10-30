@@ -4,9 +4,12 @@
 import subprocess
 import pytest
 import os
+import pty
+import select
 
 testers_path = os.path.join(os.environ['MINT_BUILD_DIR'], 'tests', 'testers')
 mint_tester_path = os.path.join(testers_path, 'mint-tester')
+has_terminal_support_tester_path = os.path.join(testers_path, 'has-terminal-support-tester')
 
 
 def _test_success(input_string: str, expected_output: str):
@@ -33,6 +36,24 @@ def _test_escape_ansi(input_string: str, expected_output: str):
                             capture_output=True, text=True)
     assert result.returncode == 0
     assert result.stdout == expected_output
+
+
+def _test_has_terminal_support_with_pty(env: dict, expected_output: str):
+    master, slave = pty.openpty()
+    process = subprocess.Popen([has_terminal_support_tester_path],
+                               stdout=slave, stderr=slave, env=env)
+    os.close(slave)
+    output = os.read(master, 16).decode().strip()
+    os.close(master)
+    process.wait()
+    assert output == expected_output
+
+
+def _test_has_terminal_support_no_tty(env: dict, expected_output: str):
+    result = subprocess.run([has_terminal_support_tester_path],
+                            capture_output=True, text=True, env=env)
+    assert result.returncode == 0
+    assert result.stdout.strip() == expected_output
 
 
 def test_bold():
@@ -520,3 +541,30 @@ def test_escape_ansi_empty_string():
 
 def test_escape_ansi_nested_three_levels():
     _test_escape_ansi('[r]red [!]bold [_]underline[/] back[/] normal[/]', 'red bold underline back normal')
+
+
+def test_has_terminal_support_tty_with_valid_term():
+    _test_has_terminal_support_with_pty({'TERM': 'xterm'}, 'true')
+
+
+def test_has_terminal_support_tty_with_dumb_term():
+    _test_has_terminal_support_with_pty({'TERM': 'dumb'}, 'false')
+
+
+def test_has_terminal_support_tty_without_term():
+    _test_has_terminal_support_with_pty({}, 'false')
+
+
+def test_has_terminal_support_no_tty_with_valid_term():
+    _test_has_terminal_support_no_tty({'TERM': 'xterm'}, 'false')
+
+
+def test_has_terminal_support_no_tty_without_term():
+    _test_has_terminal_support_no_tty({}, 'false')
+
+
+def test_has_terminal_support_preserves_errno():
+    result = subprocess.run([os.path.join(testers_path, 'has-terminal-support-errno-tester')],
+                            capture_output=True, text=True)
+    assert result.returncode == 0
+    assert result.stdout.strip() == '42'
