@@ -72,6 +72,10 @@ def test_dim():
     _test_success('[-]dim text[/]', '\033[0;2mdim text\033[0m')
 
 
+def test_reverse():
+    _test_success('[^]reverse video[/]', '\033[0;7mreverse video\033[0m')
+
+
 def test_bright_red():
     _test_success('[*r]bright red[/]', '\033[0;91mbright red\033[0m')
 
@@ -180,8 +184,12 @@ def test_underline_italic():
     _test_success('[_#]underline and italic[/]', '\033[0;3;4munderline and italic\033[0m')
 
 
+def test_bold_reverse():
+    _test_success('[!^]bold and reverse[/]', '\033[0;1;7mbold and reverse\033[0m')
+
+
 def test_all_text_attributes():
-    _test_success('[!-_#]all text attrs[/]', '\033[0;1;2;3;4mall text attrs\033[0m')
+    _test_success('[!-_#^]all text attrs[/]', '\033[0;1;2;3;4;7mall text attrs\033[0m')
 
 
 def test_attribute_order_bold_red():
@@ -210,6 +218,10 @@ def test_italic_green():
 
 def test_dim_red():
     _test_success('[-r]dim red[/]', '\033[0;2;31mdim red\033[0m')
+
+
+def test_reverse_red():
+    _test_success('[^r]reverse red[/]', '\033[0;7;31mreverse red\033[0m')
 
 
 def test_fg_and_bg_colors():
@@ -302,6 +314,11 @@ def test_nested_underline_in_italic():
 def test_nested_dim_in_bold():
     _test_success('[!]bold [-]and dim[/][/]',
                   '\033[0;1mbold \033[0;1;2mand dim\033[0;1m\033[0m')
+
+
+def test_nested_reverse_in_bold():
+    _test_success('[!]bold [^]and reverse[/][/]',
+                  '\033[0;1mbold \033[0;1;7mand reverse\033[0;1m\033[0m')
 
 
 def test_nested_bold_in_dim():

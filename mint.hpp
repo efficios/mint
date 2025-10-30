@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.5.2, a C++ function which
+ * This header offers mint::mint() v0.6.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -70,6 +70,7 @@ struct StackFrame final
     bool hasDim = false;
     bool hasUnderline = false;
     bool hasItalic = false;
+    bool hasReverse = false;
     bool hasBright = false;
     bool hasFgColor = false;
     std::uint8_t fgColorCodeOffset;
@@ -129,6 +130,10 @@ private:
 
         if (frame.hasUnderline) {
             _os << ";4";
+        }
+
+        if (frame.hasReverse) {
+            _os << ";7";
         }
 
         if (frame.hasFgColor) {
@@ -247,6 +252,10 @@ private:
                 /* Italic */
                 frame.hasItalic = true;
                 ++_at;
+            } else if (*_at == '^') {
+                /* Reverse video */
+                frame.hasReverse = true;
+                ++_at;
             } else if (*_at == '*') {
                 /* Bright foreground modifier */
                 frame.hasBright = true;
@@ -339,6 +348,10 @@ private:
 
                     if (!frame.hasItalic && this->_stackBack().hasItalic) {
                         frame.hasItalic = true;
+                    }
+
+                    if (!frame.hasReverse && this->_stackBack().hasReverse) {
+                        frame.hasReverse = true;
                     }
 
                     if (!frame.hasBright && this->_stackBack().hasBright) {
@@ -493,6 +506,9 @@ enum class When
  * `#`:
  *     Italic.
  *
+ * `^`:
+ *     Reverse video.
+ *
  * `*`:
  *     Bright foreground color.
  *
@@ -536,6 +552,7 @@ enum class When
  *     [y:b]Yellow on blue background[/]
  *     Status: [!g]OK[/], Warning: [y*]attention[/]!
  *     Use [-]dim text[/] for less prominent information
+ *     [^]Reversed colors[/] for emphasis
  *     [r]Level 1 [!]Level 2 [_]Level 3[///] back to default
  */
 inline std::string mint(const char * const begin, const char * const end, const When when = When::Auto)
