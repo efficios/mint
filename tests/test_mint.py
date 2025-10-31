@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 import subprocess
-import pytest
 import os
 import pty
 import select
