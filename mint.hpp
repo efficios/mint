@@ -645,18 +645,9 @@ inline TerminalSupport terminalSupport() noexcept
             }
         }
 
-        /* Get `TERM` environment variable value */
-        const auto term = []() -> std::string {
-            const auto termEnv = std::getenv("TERM");
-
-            if (termEnv) {
-                return termEnv;
-            }
-
-            return {};
-        }();
-
         /* Check if terminal explicitly doesn't support escape codes */
+        const std::string term {std::getenv("TERM") ?: ""};
+
         if (term.empty() || term == "dumb") {
             support = TerminalSupport::None;
             return;
@@ -665,18 +656,9 @@ inline TerminalSupport terminalSupport() noexcept
         /* At this point, we have _at least_ basic color support */
         support = TerminalSupport::BasicColor;
 
-        /* Get `COLORTERM` environment variable value */
-        const auto colorTerm = []() -> std::string {
-            const auto termEnv = std::getenv("COLORTERM");
-
-            if (termEnv) {
-                return termEnv;
-            }
-
-            return {};
-        }();
-
         /* Check for true color support via `COLORTERM` */
+        const std::string colorTerm {std::getenv("COLORTERM") ?: ""};
+
         if (colorTerm == "truecolor" || colorTerm == "24bit" || colorTerm == "yes") {
             support = TerminalSupport::TrueColor;
             return;
