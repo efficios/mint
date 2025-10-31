@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.9.0, a C++ function which
+ * This header offers mint::mint() v0.10.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -43,6 +43,7 @@
 #include <cstring>
 #include <cerrno>
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <sys/stat.h>
@@ -124,6 +125,7 @@ class Parser final
 public:
     explicit Parser(const char * const begin, const char * const end, const bool emitSgrCodes,
                     const bool hasTrueColorSupport) :
+        _begin {begin},
         _at {begin},
         _end {end},
         _emitSgrCodes {emitSgrCodes},
@@ -158,6 +160,31 @@ private:
             _result += '0' + value;
         }
     }
+
+    /*
+     * Throws `std::runtime_error` with a formatted message including
+     * the current offset and `msg`.
+     */
+    [[noreturn]] void _throw(const std::string& msg) const
+    {
+        std::ostringstream ss;
+
+        ss << "At offset " << (_at - _begin) << ": " << msg;
+        throw std::runtime_error {ss.str()};
+    }
+
+    /*
+     * Throws `std::runtime_error` with a formatted message including
+     * the offset of `pos` and `msg`.
+     */
+    [[noreturn]] void _throw(const char * const pos, const std::string& msg) const
+    {
+        std::ostringstream ss;
+
+        ss << "At offset " << (pos - _begin) << ": " << msg;
+        throw std::runtime_error {ss.str()};
+    }
+
     /*
      * Appends the SGR codes (if required) from the attributes
      * of `frame`.
@@ -224,12 +251,14 @@ private:
     }
 
     /*
-     * Converts a hex digit character to its numeric value.
+     * Converts the hex digit character `*pos` to its numeric value.
      *
      * Throws `std::runtime_error` if not a valid hex digit.
      */
-    static std::uint8_t _hexDigitValue(const char c)
+    std::uint8_t _hexDigitValue(const char * const pos) const
     {
+        const auto c = *pos;
+
         if (c >= '0' && c <= '9') {
             return c - '0';
         } else if (c >= 'a' && c <= 'f') {
@@ -238,7 +267,10 @@ private:
             return c - 'A' + 10;
         }
 
-        throw std::runtime_error {"Invalid hex digit"};
+        std::ostringstream ss;
+
+        ss << "invalid hex digit `" << c << "` in true color specifier";
+        this->_throw(pos, ss.str());
     }
 
     /*
@@ -250,18 +282,18 @@ private:
     {
         /* Need at least 6 characters */
         if (_end - _at < 6) {
-            throw std::runtime_error {"Expecting six hex digits for true color"};
+            this->_throw(_at - 1, "incomplete true color specifier");
         }
 
         const TrueColor color {
             static_cast<std::uint8_t>(
-                (this->_hexDigitValue(_at[0]) << 4) | this->_hexDigitValue(_at[1])
+                (this->_hexDigitValue(_at + 0) << 4) | this->_hexDigitValue(_at + 1)
             ),
             static_cast<std::uint8_t>(
-                (this->_hexDigitValue(_at[2]) << 4) | this->_hexDigitValue(_at[3])
+                (this->_hexDigitValue(_at + 2) << 4) | this->_hexDigitValue(_at + 3)
             ),
             static_cast<std::uint8_t>(
-                (this->_hexDigitValue(_at[4]) << 4) | this->_hexDigitValue(_at[5])
+                (this->_hexDigitValue(_at + 4) << 4) | this->_hexDigitValue(_at + 5)
             ),
         };
 
@@ -278,7 +310,7 @@ private:
     std::uint8_t _tryParseBasicColor()
     {
         if (_at == _end) {
-            throw std::runtime_error {"Expecting color letter"};
+            this->_throw("incomplete color specifier");
         }
 
         const auto c = *_at;
@@ -304,7 +336,12 @@ private:
         case 'd':
             return 9;
         default:
-            throw std::runtime_error {std::string {"Unknown color letter `"} + c + "`"};
+            {
+                std::ostringstream ss;
+
+                ss << "unknown color specifier letter `" << c << "`";
+                this->_throw(ss.str());
+            }
         }
     }
 
@@ -316,7 +353,10 @@ private:
     void _stackPush(const StackFrame& frame)
     {
         if (_stackLen >= _stack.size()) {
-            throw std::runtime_error {"Maximum nesting depth exceeded"};
+            std::ostringstream ss;
+
+            ss << "maximum nesting depth (" << (_stack.size() - 1) << ") exceeded";
+            this->_throw(ss.str());
         }
 
         _stack[_stackLen] = frame;
@@ -348,6 +388,8 @@ private:
         StackFrame frame;
 
         /* Skip `[` */
+        const auto startAt = _at;
+
         assert(*_at == '[');
         ++_at;
 
@@ -404,14 +446,14 @@ private:
 
         /* Expect `]` */
         if (_at == _end || *_at != ']') {
-            throw std::runtime_error {"Expecting `]` to terminate the opening tag"};
+            this->_throw("expecting `]` to terminate the opening tag");
         }
 
         /* Check for empty tag */
         if (!frame.hasBold && !frame.hasDim && !frame.hasUnderline && !frame.hasItalic &&
                 !frame.hasReverse && !frame.hasBright && !frame.hasFgColor && !frame.hasBgColor &&
                 !frame.hasFgTrueColor && !frame.hasBgTrueColor) {
-            throw std::runtime_error {"Empty opening tag"};
+            this->_throw(startAt, "empty opening tag");
         }
 
         ++_at;
@@ -427,19 +469,26 @@ private:
         while (_at != _end) {
             if (*_at == '\\') {
                 /* Escape sequence */
+                const auto startAt = _at;
+
                 ++_at;
 
                 if (_at == _end) {
-                    throw std::runtime_error {"Incomplete escape sequence at end of string"};
+                    this->_throw(startAt, "incomplete escape sequence at end of string");
                 }
 
                 if (*_at == '\\' || *_at == '[') {
                     _result += *_at;
                     ++_at;
                 } else {
-                    throw std::runtime_error {"Invalid escape sequence"};
+                    std::ostringstream ss;
+
+                    ss << "invalid escape sequence `\\" << *_at << "`";
+                    this->_throw(startAt, ss.str());
                 }
             } else if (*_at == '[') {
+                const auto startAt = _at;
+
                 /* Check if it's a closing tag: `[/...]` */
                 if (_at + 1 < _end && *(_at + 1) == '/') {
                     /* Count the number of consecutive slashes */
@@ -453,12 +502,16 @@ private:
 
                     /* Expect `]` after the slashes */
                     if (slashAt == _end || *slashAt != ']') {
-                        throw std::runtime_error {"Expecting `]` after `[/`"};
+                        this->_throw(startAt, "unterminated closing tag");
                     }
 
                     /* Validate we have enough frames to pop */
                     if (_stackLen <= slashCount) {
-                        throw std::runtime_error {"Unbalanced closing tag"};
+                        std::ostringstream ss;
+
+                        ss << "unbalanced closing tag: attempting to close " << slashCount <<
+                              " level(s), but only " << (_stackLen - 1) << " level(s) are open";
+                        this->_throw(startAt, ss.str());
                     }
 
                     /* Pop `slashCount` frames */
@@ -525,11 +578,15 @@ private:
 
         /* Check for unbalanced tags */
         if (_stackLen > 1) {
-            throw std::runtime_error {"Unbalanced opening tag"};
+            std::ostringstream ss;
+
+            ss << "unbalanced opening tag: " << (_stackLen - 1) << " level(s) remain unclosed";
+            this->_throw(ss.str());
         }
     }
 
 private:
+    const char *_begin;
     const char *_at;
     const char *_end;
     std::string _result;

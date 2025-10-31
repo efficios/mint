@@ -464,80 +464,124 @@ def test_space_before_color_code():
     _test_success('[ #ff0000 ]red[/]', '\033[0;38;2;255;0;0mred\033[0m')
 
 
+def test_invalid_hex_digit_fg_true_color():
+    _test_failure('[#ffgg00]text[/]', 'At offset 4: invalid hex digit `g` in true color specifier')
+
+
+def test_invalid_hex_digit_fg_true_color_uppercase():
+    _test_failure('[#ff00ZZ]text[/]', 'At offset 6: invalid hex digit `Z` in true color specifier')
+
+
+def test_invalid_hex_digit_fg_true_color_symbol():
+    _test_failure('[#ff00@0]text[/]', 'At offset 6: invalid hex digit `@` in true color specifier')
+
+
+def test_incomplete_true_color_fg_four_digits():
+    _test_failure('[#ff00]text[/]', 'At offset 6: invalid hex digit `]` in true color specifier')
+
+
+def test_incomplete_true_color_fg_three_digits():
+    _test_failure('[#abc]text[/]', 'At offset 5: invalid hex digit `]` in true color specifier')
+
+
+def test_incomplete_true_color_fg_one_digit():
+    _test_failure('[#f]text[/]', 'At offset 3: invalid hex digit `]` in true color specifier')
+
+
+def test_incomplete_true_color_fg_no_digits():
+    _test_failure('[#]text[/]', 'At offset 2: invalid hex digit `]` in true color specifier')
+
+
+def test_invalid_hex_digit_bg_true_color():
+    _test_failure('[:#ffgg00]text[/]', 'At offset 5: invalid hex digit `g` in true color specifier')
+
+
+def test_invalid_hex_digit_bg_true_color_number():
+    _test_failure('[:#abc12x]text[/]', 'At offset 8: invalid hex digit `x` in true color specifier')
+
+
+def test_incomplete_true_color_bg_two_digits():
+    _test_failure('[:#ff]text[/]', 'At offset 5: invalid hex digit `]` in true color specifier')
+
+
+def test_incomplete_true_color_bg_no_digits():
+    _test_failure('[:#]text[/]', 'At offset 3: invalid hex digit `]` in true color specifier')
+
+
 def test_space_only_opening_tag():
-    _test_failure('[ ]', 'Empty opening tag')
+    _test_failure('[ ]', 'At offset 0: empty opening tag')
 
 
 def test_multiple_spaces_only_opening_tag():
-    _test_failure('[   ]', 'Empty opening tag')
+    _test_failure('[   ]', 'At offset 0: empty opening tag')
 
 
 def test_empty_opening_tag():
-    _test_failure('[]', 'Empty opening tag')
+    _test_failure('[]', 'At offset 0: empty opening tag')
 
 
 def test_expecting_color_letter_fg():
-    _test_failure('[', 'Expecting `]` to terminate the opening tag')
+    _test_failure('[', 'At offset 1: expecting `]` to terminate the opening tag')
 
 
 def test_expecting_color_letter_bg():
-    _test_failure('[:', 'Expecting color letter')
+    _test_failure('[:', 'At offset 2: incomplete color specifier')
 
 
 def test_unknown_color_letter():
-    _test_failure('[x]text[/]', 'Unknown color letter `x`')
+    _test_failure('[x]text[/]', 'At offset 2: unknown color specifier letter `x`')
 
 
 def test_unknown_bg_color_letter():
-    _test_failure('[:x]text[/]', 'Unknown color letter `x`')
+    _test_failure('[:x]text[/]', 'At offset 3: unknown color specifier letter `x`')
 
 
 def test_incomplete_escape_sequence():
-    _test_failure('text\\', 'Incomplete escape sequence at end of string')
+    _test_failure('text\\', 'At offset 4: incomplete escape sequence at end of string')
 
 
 def test_invalid_escape_sequence():
-    _test_failure('\\a', 'Invalid escape sequence')
+    _test_failure('\\a', 'At offset 0: invalid escape sequence `\\a`')
 
 
 def test_unbalanced_closing_tag():
-    _test_failure('[/]', 'Unbalanced closing tag')
+    _test_failure('[/]', 'At offset 0: unbalanced closing tag: attempting to close 1 level(s), but only 0 level(s) are open')
 
 
 def test_unbalanced_closing_tag_extra():
-    _test_failure('[r]text[/] xyz [/] meow', 'Unbalanced closing tag')
+    _test_failure('[r]text[/] xyz [/] meow', 'At offset 15: unbalanced closing tag: attempting to close 1 level(s), but only 0 level(s) are open')
 
 
 def test_expecting_bracket_after_slash():
-    _test_failure('[/x', 'Expecting `]` after `[/`')
+    _test_failure('[/x', 'At offset 0: unterminated closing tag')
 
 
 def test_unbalanced_opening_tag():
-    _test_failure('[r]text', 'Unbalanced opening tag')
+    _test_failure('[r]text', 'At offset 7: unbalanced opening tag: 1 level(s) remain unclosed')
 
 
 def test_unbalanced_opening_tag_nested():
-    _test_failure('[r]text [!]more', 'Unbalanced opening tag')
+    _test_failure('[r]text [!]more', 'At offset 15: unbalanced opening tag: 2 level(s) remain unclosed')
 
 
 def test_unclosed_opening_tag():
-    _test_failure('[r', 'Expecting `]` to terminate the opening tag')
+    _test_failure('[r', 'At offset 2: expecting `]` to terminate the opening tag')
 
 
 def test_maximum_nesting_depth_exceeded():
-    _test_failure('[r][g][b][y][m][c]text[/][/][/][/][/][/]', 'Maximum nesting depth exceeded')
+    _test_failure('[r][g][b][y][m][c]text[/][/][/][/][/][/]', 'At offset 15: maximum nesting depth (4) exceeded')
 
 
 def test_multi_slash_too_many():
-    _test_failure('[r][//]', 'Unbalanced closing tag')
+    _test_failure('[r][//]', 'At offset 3: unbalanced closing tag: attempting to close 2 level(s), but only 1 level(s) are open')
 
 
 def test_multi_slash_way_too_many():
-    _test_failure('[r]red[/////]', 'Unbalanced closing tag')
+    _test_failure('[r]red[/////]', 'At offset 6: unbalanced closing tag: attempting to close 5 level(s), but only 1 level(s) are open')
 
 
 def test_multi_slash_unbalanced():
-    _test_failure('[///]', 'Unbalanced closing tag')
+    _test_failure('[///]', 'At offset 0: unbalanced closing tag: attempting to close 3 level(s), but only 0 level(s) are open')
 
 
 def test_escape_backslash():
