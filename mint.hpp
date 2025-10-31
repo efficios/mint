@@ -43,7 +43,6 @@
 #include <cstring>
 #include <cerrno>
 #include <mutex>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <sys/stat.h>
@@ -118,7 +117,7 @@ using Stack = std::array<StackFrame, 5>;
  * Helper for mint().
  *
  * Performs the conversion if `emitSgrCodes` is true at construction
- * time and makes the resulting string available as str().
+ * time and makes the resulting string available as takeStr().
  */
 class Parser final
 {
@@ -130,15 +129,35 @@ public:
         _emitSgrCodes {emitSgrCodes},
         _hasTrueColorSupport {hasTrueColorSupport}
     {
+        _result.reserve((end - begin) * 3);
         this->_parse();
     }
 
-    std::string str() const
+    std::string takeStr()
     {
-        return _os.str();
+        return std::move(_result);
     }
 
 private:
+    /*
+     * Appends the decimal representation of `value` to `_result`.
+     */
+    void _appendInt(const std::uint8_t value)
+    {
+        if (value >= 100) {
+            _result += '0' + (value / 100);
+
+            const auto rem = value % 100;
+
+            _result += '0' + (rem / 10);
+            _result += '0' + (rem % 10);
+        } else if (value >= 10) {
+            _result += '0' + (value / 10);
+            _result += '0' + (value % 10);
+        } else {
+            _result += '0' + value;
+        }
+    }
     /*
      * Appends the SGR codes (if required) from the attributes
      * of `frame`.
@@ -150,52 +169,58 @@ private:
         }
 
         /* Reset first */
-        _os << "\033[0";
+        _result += "\033[0";
 
         if (frame.hasBold) {
-            _os << ";1";
+            _result += ";1";
         }
 
         if (frame.hasDim) {
-            _os << ";2";
+            _result += ";2";
         }
 
         if (frame.hasItalic) {
-            _os << ";3";
+            _result += ";3";
         }
 
         if (frame.hasUnderline) {
-            _os << ";4";
+            _result += ";4";
         }
 
         if (frame.hasReverse) {
-            _os << ";7";
+            _result += ";7";
         }
 
         if (_hasTrueColorSupport && frame.hasFgTrueColor) {
             /* True color foreground */
-            _os << ";38;2;" <<
-                   static_cast<int>(frame.fgTrueColor.r) << ';' <<
-                   static_cast<int>(frame.fgTrueColor.g) << ';' <<
-                   static_cast<int>(frame.fgTrueColor.b);
+            _result += ";38;2;";
+            this->_appendInt(frame.fgTrueColor.r);
+            _result += ';';
+            this->_appendInt(frame.fgTrueColor.g);
+            _result += ';';
+            this->_appendInt(frame.fgTrueColor.b);
         } else if (frame.hasFgColor) {
             /* Basic foreground color */
-            _os << ';' << (frame.hasBright ? 90 : 30) + frame.fgColorCodeOffset;
+            _result += ';';
+            this->_appendInt((frame.hasBright ? 90 : 30) + frame.fgColorCodeOffset);
         }
 
         if (_hasTrueColorSupport && frame.hasBgTrueColor) {
             /* True color background */
-            _os << ";48;2;" <<
-                   static_cast<int>(frame.bgTrueColor.r) << ';' <<
-                   static_cast<int>(frame.bgTrueColor.g) << ';' <<
-                   static_cast<int>(frame.bgTrueColor.b);
+            _result += ";48;2;";
+            this->_appendInt(frame.bgTrueColor.r);
+            _result += ';';
+            this->_appendInt(frame.bgTrueColor.g);
+            _result += ';';
+            this->_appendInt(frame.bgTrueColor.b);
         } else if (frame.hasBgColor) {
             /* Basic background color */
-            _os << ';' << 40 + frame.bgColorCodeOffset;
+            _result += ';';
+            this->_appendInt(40 + frame.bgColorCodeOffset);
         }
 
         /* End of SGR code */
-        _os << 'm';
+        _result += 'm';
     }
 
     /*
@@ -260,8 +285,6 @@ private:
         ++_at;
 
         switch (c) {
-        case 'd':
-            return 9;
         case 'k':
             return 0;
         case 'r':
@@ -278,6 +301,8 @@ private:
             return 6;
         case 'w':
             return 7;
+        case 'd':
+            return 9;
         default:
             throw std::runtime_error {std::string {"Unknown color letter `"} + c + "`"};
         }
@@ -409,7 +434,7 @@ private:
                 }
 
                 if (*_at == '\\' || *_at == '[') {
-                    _os << *_at;
+                    _result += *_at;
                     ++_at;
                 } else {
                     throw std::runtime_error {"Invalid escape sequence"};
@@ -493,7 +518,7 @@ private:
                 }
             } else {
                 /* Append regular character */
-                _os << *_at;
+                _result += *_at;
                 ++_at;
             }
         }
@@ -507,7 +532,7 @@ private:
 private:
     const char *_at;
     const char *_end;
-    std::ostringstream _os;
+    std::string _result;
     Stack _stack;
     Stack::size_type _stackLen = 0;
     bool _emitSgrCodes;
@@ -773,7 +798,7 @@ inline std::string mint(const char * const begin, const char * const end, const 
         when == When::Always || (when == When::Auto && terminalSupport() == TerminalSupport::TrueColor),
     };
 
-    return parser.str();
+    return parser.takeStr();
 }
 
 /*
