@@ -444,6 +444,34 @@ def test_multi_slash_all_levels():
                   '\033[0;31m\033[0;1;31m\033[0;1;4;31m\033[0;1;3;4;31m\033[0m')
 
 
+def test_space_before_attribute():
+    _test_success('[ r]red text[/]', '\033[0;31mred text\033[0m')
+
+
+def test_space_after_attribute():
+    _test_success('[r ]red text[/]', '\033[0;31mred text\033[0m')
+
+
+def test_space_between_attributes():
+    _test_success('[! r]bold red[/]', '\033[0;1;31mbold red\033[0m')
+
+
+def test_multiple_spaces_between_attributes():
+    _test_success('[!  _  r]styled[/]', '\033[0;1;4;31mstyled\033[0m')
+
+
+def test_space_before_color_code():
+    _test_success('[ #ff0000 ]red[/]', '\033[0;38;2;255;0;0mred\033[0m')
+
+
+def test_space_only_opening_tag():
+    _test_failure('[ ]', 'Empty opening tag')
+
+
+def test_multiple_spaces_only_opening_tag():
+    _test_failure('[   ]', 'Empty opening tag')
+
+
 def test_empty_opening_tag():
     _test_failure('[]', 'Empty opening tag')
 

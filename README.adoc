@@ -17,7 +17,7 @@ endif::env-github[]
 
 = mint
 Philippe Proulx
-v0.8.0
+v0.9.0
 
 image::logo.png[]
 
@@ -51,8 +51,8 @@ underline, and italic formatting.
 
 The _mint_ markup syntax is straightforward and composable.
 
-An opening tag is, between `[` and `]`, an unordered sequence of (all
-optional, but at least one):
+An opening tag is, between `[` and `]`, an unordered sequence of
+specifiers (all optional, but at least one):
 
 `!`:: Bold.
 `-`:: Dim.
@@ -98,6 +98,8 @@ If you're calling `mint::mint()` in auto mode and
 `mint::terminalSupport()` reports only ANSI 16-color palette support,
 then this function will ignore the true color specifiers and only keep
 the basic ones.
+
+Spaces are allowed between specifiers within an opening tag.
 
 A closing tag contains one or more `/` characters between `[` and `]`.
 Each `/` closes one level.

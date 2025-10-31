@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.8.0, a C++ function which
+ * This header offers mint::mint() v0.9.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -326,13 +326,12 @@ private:
         assert(*_at == '[');
         ++_at;
 
-        if (_at != _end && *_at == ']') {
-            throw std::runtime_error {"Empty opening tag"};
-        }
-
         /* Parse tag content flexibly */
         while (_at != _end && *_at != ']') {
-            if (*_at == '!') {
+            if (*_at == ' ') {
+                /* Skip space */
+                ++_at;
+            } else if (*_at == '!') {
                 /* Bold */
                 frame.hasBold = true;
                 ++_at;
@@ -381,6 +380,13 @@ private:
         /* Expect `]` */
         if (_at == _end || *_at != ']') {
             throw std::runtime_error {"Expecting `]` to terminate the opening tag"};
+        }
+
+        /* Check for empty tag */
+        if (!frame.hasBold && !frame.hasDim && !frame.hasUnderline && !frame.hasItalic &&
+                !frame.hasReverse && !frame.hasBright && !frame.hasFgColor && !frame.hasBgColor &&
+                !frame.hasFgTrueColor && !frame.hasBgTrueColor) {
+            throw std::runtime_error {"Empty opening tag"};
         }
 
         ++_at;
@@ -679,8 +685,8 @@ enum class When
  *
  * MARKUP SYNTAX
  * ━━━━━━━━━━━━━
- * An opening tag is, between `[` and `]`, an unordered sequence of (all
- * optional, but at least one):
+ * An opening tag is, between `[` and `]`, an unordered sequence of
+ * specifiers (all optional, but at least one):
  *
  * `!`:
  *     Bold.
@@ -728,6 +734,8 @@ enum class When
  *     If `when` is `When::Auto` and terminalSupport() returns
  *     `Support::BasicColor`, then this function will ignore the true
  *     colors and only keep the basic ones.
+ *
+ * Spaces are allowed between specifiers within an opening tag.
  *
  * A closing tag contains one or more `/` characters between
  * `[` and `]`. Each `/` closes one level.
