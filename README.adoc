@@ -124,6 +124,11 @@ See the documentation of `mint::mint()`, `mint::escape()`,
 `mint::escapeAnsi()`, and `mint::hasTerminalSupport()` in the header
 file itself.
 
+This project suggests that you wrap `mint::mint()` into your own
+function which at least checks the https://no-color.org/[`NO_COLOR`]
+environment variable once to set the `when` parameter of `mint::mint()`
+(`mint::When::Auto` or `mint::When::Never`).
+
 == Testing
 
 To test _mint_:
