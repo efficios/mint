@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.7.0, a C++ function which
+ * This header offers mint::mint() v0.8.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -52,6 +52,24 @@
 namespace mint {
 namespace internal {
 
+bool endsWith(const std::string& str, const char * const suffix) noexcept
+{
+    const auto suffixLen = std::strlen(suffix);
+
+    if (str.size() < suffixLen) {
+        return false;
+    }
+
+    return str.find(suffix, str.size() - suffixLen) != std::string::npos;
+}
+
+struct TrueColor final
+{
+    std::uint8_t r;
+    std::uint8_t g;
+    std::uint8_t b;
+};
+
 struct StackFrame final
 {
     void setFgColor(const std::uint8_t colorCodeOffset) noexcept
@@ -66,6 +84,18 @@ struct StackFrame final
         bgColorCodeOffset = colorCodeOffset;
     }
 
+    void setFgTrueColor(const TrueColor& color) noexcept
+    {
+        hasFgTrueColor = true;
+        fgTrueColor = color;
+    }
+
+    void setBgTrueColor(const TrueColor& color) noexcept
+    {
+        hasBgTrueColor = true;
+        bgTrueColor = color;
+    }
+
     bool hasBold = false;
     bool hasDim = false;
     bool hasUnderline = false;
@@ -76,6 +106,10 @@ struct StackFrame final
     std::uint8_t fgColorCodeOffset;
     bool hasBgColor = false;
     std::uint8_t bgColorCodeOffset;
+    bool hasFgTrueColor = false;
+    TrueColor fgTrueColor;
+    bool hasBgTrueColor = false;
+    TrueColor bgTrueColor;
 };
 
 using Stack = std::array<StackFrame, 5>;
@@ -89,10 +123,12 @@ using Stack = std::array<StackFrame, 5>;
 class Parser final
 {
 public:
-    explicit Parser(const char * const begin, const char * const end, const bool emitSgrCodes) :
+    explicit Parser(const char * const begin, const char * const end, const bool emitSgrCodes,
+                    const bool hasTrueColorSupport) :
         _at {begin},
         _end {end},
-        _emitSgrCodes {emitSgrCodes}
+        _emitSgrCodes {emitSgrCodes},
+        _hasTrueColorSupport {hasTrueColorSupport}
     {
         this->_parse();
     }
@@ -136,11 +172,25 @@ private:
             _os << ";7";
         }
 
-        if (frame.hasFgColor) {
+        if (_hasTrueColorSupport && frame.hasFgTrueColor) {
+            /* True color foreground */
+            _os << ";38;2;" <<
+                   static_cast<int>(frame.fgTrueColor.r) << ';' <<
+                   static_cast<int>(frame.fgTrueColor.g) << ';' <<
+                   static_cast<int>(frame.fgTrueColor.b);
+        } else if (frame.hasFgColor) {
+            /* Basic foreground color */
             _os << ';' << (frame.hasBright ? 90 : 30) + frame.fgColorCodeOffset;
         }
 
-        if (frame.hasBgColor) {
+        if (_hasTrueColorSupport && frame.hasBgTrueColor) {
+            /* True color background */
+            _os << ";48;2;" <<
+                   static_cast<int>(frame.bgTrueColor.r) << ';' <<
+                   static_cast<int>(frame.bgTrueColor.g) << ';' <<
+                   static_cast<int>(frame.bgTrueColor.b);
+        } else if (frame.hasBgColor) {
+            /* Basic background color */
             _os << ';' << 40 + frame.bgColorCodeOffset;
         }
 
@@ -149,12 +199,58 @@ private:
     }
 
     /*
-     * Tries to parse a color letter, returning the corresponding ANSI
-     * color offset.
+     * Converts a hex digit character to its numeric value.
+     *
+     * Throws `std::runtime_error` if not a valid hex digit.
+     */
+    static std::uint8_t _hexDigitValue(const char c)
+    {
+        if (c >= '0' && c <= '9') {
+            return c - '0';
+        } else if (c >= 'a' && c <= 'f') {
+            return c - 'a' + 10;
+        } else if (c >= 'A' && c <= 'F') {
+            return c - 'A' + 10;
+        }
+
+        throw std::runtime_error {"Invalid hex digit"};
+    }
+
+    /*
+     * Tries to parse 6 hex digits as a true color.
      *
      * Throws `std::runtime_error` on error.
      */
-    std::uint8_t _tryParseColor()
+    TrueColor _tryParseHexColor()
+    {
+        /* Need at least 6 characters */
+        if (_end - _at < 6) {
+            throw std::runtime_error {"Expecting six hex digits for true color"};
+        }
+
+        const TrueColor color {
+            static_cast<std::uint8_t>(
+                (this->_hexDigitValue(_at[0]) << 4) | this->_hexDigitValue(_at[1])
+            ),
+            static_cast<std::uint8_t>(
+                (this->_hexDigitValue(_at[2]) << 4) | this->_hexDigitValue(_at[3])
+            ),
+            static_cast<std::uint8_t>(
+                (this->_hexDigitValue(_at[4]) << 4) | this->_hexDigitValue(_at[5])
+            ),
+        };
+
+        _at += 6;
+        return color;
+    }
+
+    /*
+     * Tries to parse a color letter, returning the corresponding ANSI
+     * color _offset_.
+     *
+     * Throws `std::runtime_error` on error.
+     */
+    std::uint8_t _tryParseBasicColor()
     {
         if (_at == _end) {
             throw std::runtime_error {"Expecting color letter"};
@@ -263,10 +359,22 @@ private:
             } else if (*_at == ':') {
                 /* Background color */
                 ++_at;
-                frame.setBgColor(this->_tryParseColor());
+
+                if (_at != _end && *_at == '#') {
+                    /* True color background */
+                    ++_at;
+                    frame.setBgTrueColor(this->_tryParseHexColor());
+                } else {
+                    /* Basic background color */
+                    frame.setBgColor(this->_tryParseBasicColor());
+                }
+            } else if (*_at == '#') {
+                /* True color foreground */
+                ++_at;
+                frame.setFgTrueColor(this->_tryParseHexColor());
             } else {
-                /* Foreground color */
-                frame.setFgColor(this->_tryParseColor());
+                /* Basic foreground color */
+                frame.setFgColor(this->_tryParseBasicColor());
             }
         }
 
@@ -366,6 +474,14 @@ private:
                         frame.setBgColor(this->_stackBack().bgColorCodeOffset);
                     }
 
+                    if (!frame.hasFgTrueColor && this->_stackBack().hasFgTrueColor) {
+                        frame.setFgTrueColor(this->_stackBack().fgTrueColor);
+                    }
+
+                    if (!frame.hasBgTrueColor && this->_stackBack().hasBgTrueColor) {
+                        frame.setBgTrueColor(this->_stackBack().bgTrueColor);
+                    }
+
                     this->_stackPush(frame);
                     this->_appendSgrCode(frame);
                 }
@@ -389,26 +505,42 @@ private:
     Stack _stack;
     Stack::size_type _stackLen = 0;
     bool _emitSgrCodes;
+    bool _hasTrueColorSupport;
 };
 
 } /* namespace internal */
 
 /*
- * Returns whether or not there's a connected terminal which seems to
- * support attributes.
+ * Terminal support level for colors and attributes.
+ */
+enum class TerminalSupport
+{
+    /* No support for colors or attributes */
+    None,
+
+    /* Supports the ANSI 16-color palette and attributes */
+    BasicColor,
+
+    /* Supports true colors (24-bit) and attributes */
+    TrueColor,
+};
+
+/*
+ * Returns the support level for colors and attributes of the connected
+ * terminal.
  *
  * This function is thread-safe and doesn't modify `errno`.
  */
-inline bool hasTerminalSupport() noexcept
+inline TerminalSupport terminalSupport() noexcept
 {
     static std::once_flag initFlag;
-    static bool hasSupport;
+    static TerminalSupport support;
     const auto savedErrno = errno;
 
     std::call_once(initFlag, [] {
         /* Check if standard output is connected to a real TTY */
         if (!isatty(STDOUT_FILENO)) {
-            hasSupport = false;
+            support = TerminalSupport::None;
             return;
         }
 
@@ -419,27 +551,64 @@ inline bool hasTerminalSupport() noexcept
             if (fstat(STDOUT_FILENO, &ttyStats) == 0) {
                 if (!S_ISCHR(ttyStats.st_mode)) {
                     /* Not a character device */
-                    hasSupport = false;
+                    support = TerminalSupport::None;
                     return;
                 }
             }
         }
 
-        /* Check if terminal explicitly doesn't support escape codes */
-        {
-            const auto term = std::getenv("TERM");
+        /* Get `TERM` environment variable value */
+        const auto term = []() -> std::string {
+            const auto termEnv = std::getenv("TERM");
 
-            if (!term || std::strcmp(term, "dumb") == 0) {
-                hasSupport = false;
-                return;
+            if (termEnv) {
+                return termEnv;
             }
+
+            return {};
+        }();
+
+        /* Check if terminal explicitly doesn't support escape codes */
+        if (term.empty() || term == "dumb") {
+            support = TerminalSupport::None;
+            return;
         }
 
-        hasSupport = true;
+        /* At this point, we have _at least_ basic color support */
+        support = TerminalSupport::BasicColor;
+
+        /* Get `COLORTERM` environment variable value */
+        const auto colorTerm = []() -> std::string {
+            const auto termEnv = std::getenv("COLORTERM");
+
+            if (termEnv) {
+                return termEnv;
+            }
+
+            return {};
+        }();
+
+        /* Check for true color support via `COLORTERM` */
+        if (colorTerm == "truecolor" || colorTerm == "24bit" || colorTerm == "yes") {
+            support = TerminalSupport::TrueColor;
+            return;
+        }
+
+        /* Check for true color support via `TERM` */
+        if (internal::endsWith(term, "-direct")) {
+            support = TerminalSupport::TrueColor;
+            return;
+        }
+
+        /* Check for specific terminal emulators known to support true colors */
+        if (term == "alacritty" || term == "xterm-kitty" || term == "wezterm" ||
+                term == "foot" || term == "ghostty") {
+            support = TerminalSupport::TrueColor;
+        }
     });
 
     errno = savedErrno;
-    return hasSupport;
+    return support;
 }
 
 /*
@@ -447,13 +616,26 @@ inline bool hasTerminalSupport() noexcept
  */
 enum class When
 {
-    /* When the connected terminal seems to supports it */
+    /*
+     * When the connected terminal seems to supports it.
+     *
+     * In this mode, mint() only emits true color sequences if the
+     * terminal seems to support it (terminalSupport() returns
+     * `Support::TrueColor`).
+     */
     Auto,
 
-    /* Always, even if the connected terminal doesn't seem to support it */
+    /*
+     * Always, even if the connected terminal doesn't seem to
+     * support it.
+     *
+     * In this mode, mint() always emits true color sequences.
+     */
     Always,
 
-    /* Never, even if the connected terminal seems to support it */
+    /*
+     * Never, even if the connected terminal seems to support it.
+     */
     Never,
 };
 
@@ -466,15 +648,21 @@ enum class When
  *
  * `When::Auto` (default):
  *     Only performs the conversion when there's a connected terminal
- *     which seems to support attributes.
+ *     which seems to support colors and attributes.
  *
- *     When there's no terminal SGR support (hasTerminalSupport()
- *     returns false), this function effectively removes attribute tags
- *     from the viewed string.
+ *     When there's no terminal support (terminalSupport() returns
+ *     `TerminalSupport::None`), this function effectively removes
+ *     attribute tags from the viewed string.
+ *
+ *     In this mode, this function only emits true color sequences if
+ *     the terminal seems to support it (terminalSupport() returns
+ *     `Support::TrueColor`).
  *
  * `When::Always`:
  *     Always performs the conversion, even if the connected terminal
  *     doesn't seem to support it.
+ *
+ *     In this mode, this function always emits true color sequences.
  *
  * `When::Never`:
  *     Never performs the conversion and always removes attribute tags
@@ -516,17 +704,30 @@ enum class When
  * `COLOR` (foreground):
  *     `COLOR` is one of:
  *
- *     ╔═════╦═════════╗
- *     ║ `d` ║ Default ║
- *     ║ `k` ║ Black   ║
- *     ║ `r` ║ Red     ║
- *     ║ `g` ║ Green   ║
- *     ║ `y` ║ Yellow  ║
- *     ║ `b` ║ Blue    ║
- *     ║ `m` ║ Magenta ║
- *     ║ `c` ║ Cyan    ║
- *     ║ `w` ║ White   ║
- *     ╚═════╩═════════╝
+ *     ANSI 16-color palette:
+ *         ╔═════╦═════════╗
+ *         ║ `d` ║ Default ║
+ *         ║ `k` ║ Black   ║
+ *         ║ `r` ║ Red     ║
+ *         ║ `g` ║ Green   ║
+ *         ║ `y` ║ Yellow  ║
+ *         ║ `b` ║ Blue    ║
+ *         ║ `m` ║ Magenta ║
+ *         ║ `c` ║ Cyan    ║
+ *         ║ `w` ║ White   ║
+ *         ╚═════╩═════════╝
+ *
+ *     True color:
+ *         `#` followed with six hex digits (like a CSS color).
+ *
+ *     Note that you can set two foreground or background colors within
+ *     a single opening tag, for example:
+ *
+ *         A [r#e74c3c]wonderful [!:m:#9b59b6]day[//]!
+ *
+ *     If `when` is `When::Auto` and terminalSupport() returns
+ *     `Support::BasicColor`, then this function will ignore the true
+ *     colors and only keep the basic ones.
  *
  * A closing tag contains one or more `/` characters between
  * `[` and `]`. Each `/` closes one level.
@@ -550,6 +751,7 @@ enum class When
  *     Error: [!*r]critical failure[/]!
  *     To show [c_]cyan[/] text, use the `\[c]` tag
  *     [y:b]Yellow on blue background[/]
+ *     A [#e74c3c]wonderful [!:#9b59b6]day[//]!
  *     Status: [!g]OK[/], Warning: [y*]attention[/]!
  *     Use [-]dim text[/] for less prominent information
  *     [^]Reversed colors[/] for emphasis
@@ -559,7 +761,8 @@ inline std::string mint(const char * const begin, const char * const end, const 
 {
     internal::Parser parser {
         begin, end,
-        when == When::Always || (when == When::Auto && hasTerminalSupport())
+        when == When::Always || (when == When::Auto && terminalSupport() != TerminalSupport::None),
+        when == When::Always || (when == When::Auto && terminalSupport() == TerminalSupport::TrueColor),
     };
 
     return parser.str();

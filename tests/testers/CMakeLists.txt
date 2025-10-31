@@ -10,8 +10,8 @@ target_include_directories (escape-tester PRIVATE ../..)
 add_executable (escape-ansi-tester escape-ansi-tester.cpp)
 target_include_directories (escape-ansi-tester PRIVATE ../..)
 
-add_executable (has-terminal-support-tester has-terminal-support-tester.cpp)
-target_include_directories (has-terminal-support-tester PRIVATE ../..)
+add_executable (terminal-support-tester terminal-support-tester.cpp)
+target_include_directories (terminal-support-tester PRIVATE ../..)
 
-add_executable (has-terminal-support-errno-tester has-terminal-support-errno-tester.cpp)
-target_include_directories (has-terminal-support-errno-tester PRIVATE ../..)
+add_executable (terminal-support-errno-tester terminal-support-errno-tester.cpp)
+target_include_directories (terminal-support-errno-tester PRIVATE ../..)

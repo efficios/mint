@@ -11,7 +11,7 @@
 int main()
 {
     errno = 42;
-    mint::hasTerminalSupport();
+    mint::terminalSupport();
     std::cout << errno << '\n';
     return 0;
 }

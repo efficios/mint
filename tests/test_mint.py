@@ -8,7 +8,7 @@ import select
 
 testers_path = os.path.join(os.environ['MINT_BUILD_DIR'], 'tests', 'testers')
 mint_tester_path = os.path.join(testers_path, 'mint-tester')
-has_terminal_support_tester_path = os.path.join(testers_path, 'has-terminal-support-tester')
+terminal_support_tester_path = os.path.join(testers_path, 'terminal-support-tester')
 
 
 def _test_success(input_string: str, expected_output: str):
@@ -37,9 +37,9 @@ def _test_escape_ansi(input_string: str, expected_output: str):
     assert result.stdout == expected_output
 
 
-def _test_has_terminal_support_with_pty(env: dict, expected_output: str):
+def _test_terminal_support_with_pty(env: dict, expected_output: str):
     master, slave = pty.openpty()
-    process = subprocess.Popen([has_terminal_support_tester_path],
+    process = subprocess.Popen([terminal_support_tester_path],
                                stdout=slave, stderr=slave, env=env)
     os.close(slave)
     output = os.read(master, 16).decode().strip()
@@ -48,8 +48,8 @@ def _test_has_terminal_support_with_pty(env: dict, expected_output: str):
     assert output == expected_output
 
 
-def _test_has_terminal_support_no_tty(env: dict, expected_output: str):
-    result = subprocess.run([has_terminal_support_tester_path],
+def _test_terminal_support_no_tty(env: dict, expected_output: str):
+    result = subprocess.run([terminal_support_tester_path],
                             capture_output=True, text=True, env=env)
     assert result.returncode == 0
     assert result.stdout.strip() == expected_output
@@ -261,6 +261,35 @@ def test_bright_white():
 
 def test_bright_with_bg_only():
     _test_success('[*:r]bright bg[/]', '\033[0;41mbright bg\033[0m')
+
+
+def test_true_color_fg():
+    _test_success('[#ff0000]red[/]', '\033[0;38;2;255;0;0mred\033[0m')
+
+
+def test_true_color_fg_lowercase():
+    _test_success('[#00ff00]green[/]', '\033[0;38;2;0;255;0mgreen\033[0m')
+
+
+def test_true_color_fg_uppercase():
+    _test_success('[#0000FF]blue[/]', '\033[0;38;2;0;0;255mblue\033[0m')
+
+
+def test_true_color_bg():
+    _test_success('[:#ffff00]yellow bg[/]', '\033[0;48;2;255;255;0myellow bg\033[0m')
+
+
+def test_true_color_fg_and_bg():
+    _test_success('[#ffffff:#000000]white on black[/]',
+                  '\033[0;38;2;255;255;255;48;2;0;0;0mwhite on black\033[0m')
+
+
+def test_true_color_with_bold():
+    _test_success('[!#e74c3c]bold red[/]', '\033[0;1;38;2;231;76;60mbold red\033[0m')
+
+
+def test_true_color_with_italic_underline():
+    _test_success("['_#3498db]styled blue[/]", '\033[0;3;4;38;2;52;152;219mstyled blue\033[0m')
 
 
 def test_plain_text():
@@ -559,28 +588,68 @@ def test_escape_ansi_nested_three_levels():
     _test_escape_ansi('[r]red [!]bold [_]underline[/] back[/] normal[/]', 'red bold underline back normal')
 
 
-def test_has_terminal_support_tty_with_valid_term():
-    _test_has_terminal_support_with_pty({'TERM': 'xterm'}, 'true')
+def test_terminal_support_tty_with_dumb_term():
+    _test_terminal_support_with_pty({'TERM': 'dumb'}, 'none')
 
 
-def test_has_terminal_support_tty_with_dumb_term():
-    _test_has_terminal_support_with_pty({'TERM': 'dumb'}, 'false')
+def test_terminal_support_tty_without_term():
+    _test_terminal_support_with_pty({}, 'none')
 
 
-def test_has_terminal_support_tty_without_term():
-    _test_has_terminal_support_with_pty({}, 'false')
+def test_terminal_support_no_tty_with_valid_term():
+    _test_terminal_support_no_tty({'TERM': 'xterm'}, 'none')
 
 
-def test_has_terminal_support_no_tty_with_valid_term():
-    _test_has_terminal_support_no_tty({'TERM': 'xterm'}, 'false')
+def test_terminal_support_no_tty_without_term():
+    _test_terminal_support_no_tty({}, 'none')
 
 
-def test_has_terminal_support_no_tty_without_term():
-    _test_has_terminal_support_no_tty({}, 'false')
+def test_terminal_support_tty_with_valid_term():
+    _test_terminal_support_with_pty({'TERM': 'xterm'}, 'basic-color')
 
 
-def test_has_terminal_support_preserves_errno():
-    result = subprocess.run([os.path.join(testers_path, 'has-terminal-support-errno-tester')],
+def test_terminal_support_term_256color():
+    _test_terminal_support_with_pty({'TERM': 'xterm-256color'}, 'basic-color')
+
+
+def test_terminal_support_colorterm_truecolor():
+    _test_terminal_support_with_pty({'TERM': 'xterm', 'COLORTERM': 'truecolor'}, 'true-color')
+
+
+def test_terminal_support_colorterm_24bit():
+    _test_terminal_support_with_pty({'TERM': 'xterm', 'COLORTERM': '24bit'}, 'true-color')
+
+
+def test_terminal_support_colorterm_yes():
+    _test_terminal_support_with_pty({'TERM': 'xterm', 'COLORTERM': 'yes'}, 'true-color')
+
+
+def test_terminal_support_term_direct():
+    _test_terminal_support_with_pty({'TERM': 'xterm-direct'}, 'true-color')
+
+
+def test_terminal_support_term_alacritty():
+    _test_terminal_support_with_pty({'TERM': 'alacritty'}, 'true-color')
+
+
+def test_terminal_support_term_xterm_kitty():
+    _test_terminal_support_with_pty({'TERM': 'xterm-kitty'}, 'true-color')
+
+
+def test_terminal_support_term_wezterm():
+    _test_terminal_support_with_pty({'TERM': 'wezterm'}, 'true-color')
+
+
+def test_terminal_support_term_foot():
+    _test_terminal_support_with_pty({'TERM': 'foot'}, 'true-color')
+
+
+def test_terminal_support_term_ghostty():
+    _test_terminal_support_with_pty({'TERM': 'ghostty'}, 'true-color')
+
+
+def test_terminal_support_preserves_errno():
+    result = subprocess.run([os.path.join(testers_path, 'terminal-support-errno-tester')],
                             capture_output=True, text=True)
     assert result.returncode == 0
     assert result.stdout.strip() == '42'

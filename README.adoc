@@ -17,7 +17,7 @@ endif::env-github[]
 
 = mint
 Philippe Proulx
-v0.7.0
+v0.8.0
 
 image::logo.png[]
 
@@ -67,6 +67,9 @@ optional, but at least one):
 `COLOR` (foreground)::
     `COLOR` is one of:
 +
+--
+ANSI 16-color palette::
++
 [%autowidth]
 |===
 |`d` |Default
@@ -79,6 +82,22 @@ optional, but at least one):
 |`c` |Cyan
 |`w` |White
 |===
+
+True color::
+    `#` followed with six hex digits (like a CSS color).
+--
++
+Note that you can set two foreground or background colors within
+a single opening tag, for example:
++
+----
+A [r#e74c3c]wonderful [!:m:#9b59b6]day[//]!
+----
++
+If you're calling `mint::mint()` in auto mode and
+`mint::terminalSupport()` reports only ANSI 16-color palette support,
+then this function will ignore the true color specifiers and only keep
+the basic ones.
 
 A closing tag contains one or more `/` characters between `[` and `]`.
 Each `/` closes one level.
@@ -121,7 +140,7 @@ Include the `mint.hpp` header in your {cpp} code:
 ----
 
 See the documentation of `mint::mint()`, `mint::escape()`,
-`mint::escapeAnsi()`, and `mint::hasTerminalSupport()` in the header
+`mint::escapeAnsi()`, and `mint::terminalSupport()` in the header
 file itself.
 
 This project suggests that you wrap `mint::mint()` into your own
