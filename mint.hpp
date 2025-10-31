@@ -25,7 +25,7 @@
  */
 
 /*
- * This header offers mint::mint() v0.6.0, a C++ function which
+ * This header offers mint::mint() v0.7.0, a C++ function which
  * transforms a string which can contain terminal attribute tags into
  * another string containing actual terminal SGR codes.
  *
@@ -248,7 +248,7 @@ private:
                 /* Underline */
                 frame.hasUnderline = true;
                 ++_at;
-            } else if (*_at == '#') {
+            } else if (*_at == '\'') {
                 /* Italic */
                 frame.hasItalic = true;
                 ++_at;
@@ -503,7 +503,7 @@ enum class When
  * `_`:
  *     Underline.
  *
- * `#`:
+ * `'`:
  *     Italic.
  *
  * `^`:

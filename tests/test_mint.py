@@ -64,7 +64,7 @@ def test_underline():
 
 
 def test_italic():
-    _test_success('[#]italic text[/]', '\033[0;3mitalic text\033[0m')
+    _test_success("[']italic text[/]", '\033[0;3mitalic text\033[0m')
 
 
 def test_dim():
@@ -168,7 +168,7 @@ def test_bold_dim():
 
 
 def test_bold_italic():
-    _test_success('[!#]bold and italic[/]', '\033[0;1;3mbold and italic\033[0m')
+    _test_success("[!']bold and italic[/]", '\033[0;1;3mbold and italic\033[0m')
 
 
 def test_dim_underline():
@@ -176,11 +176,11 @@ def test_dim_underline():
 
 
 def test_dim_italic():
-    _test_success('[-#]dim and italic[/]', '\033[0;2;3mdim and italic\033[0m')
+    _test_success("[-']dim and italic[/]", '\033[0;2;3mdim and italic\033[0m')
 
 
 def test_underline_italic():
-    _test_success('[_#]underline and italic[/]', '\033[0;3;4munderline and italic\033[0m')
+    _test_success("[_']underline and italic[/]", '\033[0;3;4munderline and italic\033[0m')
 
 
 def test_bold_reverse():
@@ -188,7 +188,7 @@ def test_bold_reverse():
 
 
 def test_all_text_attributes():
-    _test_success('[!-_#^]all text attrs[/]', '\033[0;1;2;3;4;7mall text attrs\033[0m')
+    _test_success("[!-_'^]all text attrs[/]", '\033[0;1;2;3;4;7mall text attrs\033[0m')
 
 
 def test_attribute_order_bold_red():
@@ -196,11 +196,11 @@ def test_attribute_order_bold_red():
 
 
 def test_attribute_order_mixed():
-    _test_success('[#_!]mixed order[/]', '\033[0;1;3;4mmixed order\033[0m')
+    _test_success("['_!]mixed order[/]", '\033[0;1;3;4mmixed order\033[0m')
 
 
 def test_attribute_order_color_first():
-    _test_success('[y!_#:b]color first[/]', '\033[0;1;3;4;33;44mcolor first\033[0m')
+    _test_success("[y!_':b]color first[/]", '\033[0;1;3;4;33;44mcolor first\033[0m')
 
 
 def test_bold_red():
@@ -212,7 +212,7 @@ def test_underline_blue():
 
 
 def test_italic_green():
-    _test_success('[#g]italic green[/]', '\033[0;3;32mitalic green\033[0m')
+    _test_success("['g]italic green[/]", '\033[0;3;32mitalic green\033[0m')
 
 
 def test_dim_red():
@@ -228,7 +228,7 @@ def test_fg_and_bg_colors():
 
 
 def test_bold_italic_underline_red_on_white():
-    _test_success('[!#_r:w]complex[/]', '\033[0;1;3;4;31;47mcomplex\033[0m')
+    _test_success("[!'_r:w]complex[/]", '\033[0;1;3;4;31;47mcomplex\033[0m')
 
 
 def test_bright_bold_cyan():
@@ -306,7 +306,7 @@ def test_nested_red_in_bold():
 
 
 def test_nested_underline_in_italic():
-    _test_success('[#]italic [_]and underline[/][/]',
+    _test_success("[']italic [_]and underline[/][/]",
                   '\033[0;3mitalic \033[0;3;4mand underline\033[0;3m\033[0m')
 
 
@@ -351,7 +351,7 @@ def test_nested_color_in_bright():
 
 
 def test_nested_all_attributes():
-    _test_success('[!]b [_]u [#]i [r]r[/][/][/][/]',
+    _test_success("[!]b [_]u [']i [r]r[/][/][/][/]",
                   '\033[0;1mb \033[0;1;4mu \033[0;1;3;4mi \033[0;1;3;4;31mr\033[0;1;3;4m\033[0;1;4m\033[0;1m\033[0m')
 
 
@@ -376,7 +376,7 @@ def test_nested_multiple_backgrounds():
 
 
 def test_consecutive_nested_tags():
-    _test_success('[!][_][#]text[/][/][/]',
+    _test_success("[!][_][']text[/][/][/]",
                   '\033[0;1m\033[0;1;4m\033[0;1;3;4mtext\033[0;1;4m\033[0;1m\033[0m')
 
 
@@ -391,7 +391,7 @@ def test_multi_slash_triple_close():
 
 
 def test_multi_slash_quadruple_close():
-    _test_success('[r]red [!]bold [_]underline [#]italic[////]',
+    _test_success("[r]red [!]bold [_]underline [']italic[////]",
                   '\033[0;31mred \033[0;1;31mbold \033[0;1;4;31munderline \033[0;1;3;4;31mitalic\033[0m')
 
 
@@ -411,7 +411,7 @@ def test_multi_slash_double_in_middle():
 
 
 def test_multi_slash_all_levels():
-    _test_success('[r][!][_][#][////]',
+    _test_success("[r][!][_]['][////]",
                   '\033[0;31m\033[0;1;31m\033[0;1;4;31m\033[0;1;3;4;31m\033[0m')
 
 
@@ -540,7 +540,7 @@ def test_escape_ansi_multiple_tags():
 
 
 def test_escape_ansi_all_attributes():
-    _test_escape_ansi('[!-_#*r:b]complex[/]', 'complex')
+    _test_escape_ansi("[!-_'*r:b]complex[/]", 'complex')
 
 
 def test_escape_ansi_bright_colors():
